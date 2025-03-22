@@ -1,0 +1,183 @@
+---
+title: "jzeng21_OriginalHomeworkCode_04"
+format: html
+editor: visual
+---
+
+## Question 1
+
+```{r}
+Z.prop.test <- function(p1,n1, p2 = null, n2= null,p0,alternative = "two-sided", conf.level= 0.95) {
+  
+  if(n1 * p1 <= 5 || n1 *(1-p1) <= 5){
+    warning("sample 1 does not meet conditions (n∗p>5
+ and n∗(1−p)>5")}
+
+#The function should perform a one-sample Z-test using p1, n1, and p0 if either p2 or n2 (or both) is NULL.
+  if (is.null(p2) || is.null(n2)){ 
+    se <- sqrt(p0 * (1 - p0) / n1) #here I am doing z denominator and doing the calculation first then assigning it to se so that when I do call it in z I can just do (p1 - p0)/se just more simplified version basically.
+    z <- (p1 - p0) / se
+    ci <- p1 + c(-1, 1) * qnorm((1 + conf.level) / 2) * se  # instead of writing basically the same code for CI lower and CI upper where the only difference is the sign change. You can actually use a vector c(-1,1) here the multiplication is applied to the vector where it will perform p1 - Z * se then perform p1 + Z * se
+    }
+   
+  else {
+    if (n2 * p2 <= 5 || n2 *(1-p2) <= 5){
+    warning("sample 2 does not meet conditions (n∗p>5
+ and n∗(1−p)>5")
+  }
+  
+   pooled_p <- (p1 * n1 + p2 * n2) / (n1 + n2)
+    se <- sqrt(pooled_p * (1 - pooled_p) * (1 / n1 + 1 / n2))
+    z <- (p1 - p2) / se
+    ci <- (p1 - p2) + c(-1, 1) * qnorm(1 - (1 - conf.level) / 2) * se
+  }
+  
+  # p-value calculation
+  p_value <- switch(
+    alternative,
+    "two.sided" = 2 * (1 - pnorm(abs(z))),
+    "less" = pnorm(z),
+    "greater" = 1 - pnorm(z),
+    stop("Invalid alternative hypothesis. Use 'two.sided', 'less', or 'greater'.")
+  )
+  
+  # Return list with results
+  list(
+    Z = z,
+    P = p_value,
+    CI = ci
+  )
+}
+
+```
+
+## Question 2
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+k_data <- read.csv("C:\\Users\\jzeng21\\Desktop\\AN588\\AN588_Malfunction_jzeng21\\KamilarAndCooperData.csv")
+head(data)
+
+# Model 1: Longevity ~ Brain Size
+model1 <- lm(MaxLongevity_m ~ Brain_Size_Species_Mean, data = k_data)
+
+# Model 2: log(Longevity) ~ log(Brain Size)
+k_data <- k_data %>%
+  mutate(log_Longevity = log(MaxLongevity_m),
+         log_BrainSize = log(Brain_Size_Species_Mean))
+
+model2 <- lm(log_Longevity ~ log_BrainSize, data = k_data)
+
+# View summaries
+summary(model1)
+summary(model2)
+
+confint(model1, level = 0.90)
+confint(model2, level = 0.90)
+
+# Extract slope (β₁) and intercept (β₀)
+beta0_1 <- coef(model1)[1]
+beta1_1 <- coef(model1)[2]
+
+# Scatterplot with regression line
+p1 <- ggplot(k_data, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  geom_text(x = max(k_data$Brain_Size_Species_Mean) * 0.7, 
+            y = max(k_data$MaxLongevity_m) * 0.8, 
+            label = paste0("Longevity = ", round(beta0_1, 2), " + ", round(beta1_1, 2), " * Brain Size"),
+            color = "black", size = 5) +
+  labs(title = "Scatterplot of Longevity vs Brain Size",
+       x = "Brain Size (grams)", y = "Longevity (months)") +
+  theme_minimal()
+
+print(p1)
+```
+
+```{r}
+beta0_2 <- coef(model2)[1]
+beta1_2 <- coef(model2)[2]
+
+p2 <- ggplot(k_data, aes(x = log_BrainSize, y = log_Longevity)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_text(x = max(k_data$log_BrainSize) * 0.7, 
+            y = max(k_data$log_Longevity) * 0.8, 
+            label = paste0("log(Longevity) = ", round(beta0_2, 2), " + ", round(beta1_2, 2), " * log(Brain Size)"),
+            color = "black", size = 5) +
+  labs(title = "Scatterplot of log(Longevity) vs log(Brain Size)",
+       x = "log(Brain Size)", y = "log(Longevity)") +
+  theme_minimal()
+
+print(p2)
+
+
+```
+
+```{r}
+# Ensure k_data has no missing values
+k_data <- na.omit(k_data)
+
+# Create new data for predictions
+new_data <- data.frame(
+  Brain_Size_Species_Mean = seq(
+    min(k_data$Brain_Size_Species_Mean, na.rm = TRUE),
+    max(k_data$Brain_Size_Species_Mean, na.rm = TRUE),
+    length.out = 100
+  )
+)
+
+# Compute prediction and confidence intervals
+pred <- predict(model1, newdata = new_data, interval = "predict", level = 0.90)
+conf <- predict(model1, newdata = new_data, interval = "confidence", level = 0.90)
+
+# Merge predictions with new_data
+new_data$fit <- pred[, "fit"]
+new_data$pi_lower <- pred[, "lwr"]
+new_data$pi_upper <- pred[, "upr"]
+new_data$ci_lower <- conf[, "lwr"]
+new_data$ci_upper <- conf[, "upr"]
+
+# Plot with confidence and prediction intervals
+library(ggplot2)
+
+# Add MaxLongevity_m to new_data (use predicted fit as proxy)
+new_data$MaxLongevity_m <- new_data$fit  # Assign fit as a proxy
+
+# Plot with CI and PI bands
+p3 <- ggplot(k_data, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) +
+  geom_point() +
+  geom_line(data = new_data, aes(x = Brain_Size_Species_Mean, y = fit), color = "blue") +
+  geom_ribbon(data = new_data, aes(x = Brain_Size_Species_Mean, ymin = ci_lower, ymax = ci_upper), fill = "blue", alpha = 0.3) +
+  geom_ribbon(data = new_data, aes(x = Brain_Size_Species_Mean, ymin = pi_lower, ymax = pi_upper), fill = "red", alpha = 0.2) +
+  labs(
+    title = "Longevity vs Brain Size with CI and PI",
+    x = "Brain Size (grams)",
+    y = "Longevity (months)"
+  ) +
+  theme_minimal()
+
+print(p3)
+
+
+
+
+
+```
+
+```{r}
+# Create new data point
+new_species <- data.frame(Brain_Size_Species_Mean = 800)
+
+# Predict Longevity
+predict(model1, new_species, interval = "predict", level = 0.90)
+
+```
+
+```{r}
+plot(model1)
+plot(model2)
+
+```
