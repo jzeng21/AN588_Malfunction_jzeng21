@@ -164,7 +164,7 @@ p3 <- ggplot(k_data, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) +
     x = "Brain Size (grams)",
     y = "Longevity (months)"
   ) +
-  theme_minimal()
+  theme_minimal() #to make minimal look
 
 print(p3)
 
