@@ -184,7 +184,21 @@ predict(model1, new_species, interval = "predict", level = 0.90)
 ```
 
 ```{r}
+# Here I want to plot visually see variance in the plots. It will plot 4 graphs per model 
 plot(model1)
 plot(model2)
 
 ```
+
+Since 800g is within the range of observed brain sizes, we can reasonably trust the prediction. However, if it were outside the observed range, extrapolation could be unreliable.
+
+```{r}
+# Compare R² values to assess which model fits better.
+# Typically, the log-log model shows a stronger linear relationship in biological data.
+summary(model1)$r.squared
+summary(model2)$r.squared
+```
+
+## Conclusion
+
+The log-log model 2 is better as there is a more variance in the outcome. Furthermore, based on the R² values and the nature of biological scaling, the log-log model provides a better fit for the data. It captures the nonlinear relationship between brain size and longevity more effectively.
