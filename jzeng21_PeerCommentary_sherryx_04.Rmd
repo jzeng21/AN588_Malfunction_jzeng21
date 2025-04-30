@@ -1,0 +1,295 @@
+---
+title: "sherryx_FinalHomeworkCode_04"
+author: "Sherry Xie"
+date: "2025-03-10"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+    toc: true
+---
+
+## Set up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#loading ggplot for the figures
+library(ggplot2)
+library(tidyverse)
+library(curl)
+
+
+#loading prettydoc for the theme
+library(prettydoc)
+
+#NO NEED TO LOAD THESE BECAUSE "//saadams// If I'm not mistaken, I think it may be redundant to load dplyr and ggplot2 here because I'm pretty sure it's included in tidyverse!"
+#library(dplyr)
+#library(curl)
+```
+
+## [1] Write a simple R function, `Z.prop.test()`, that can perform one- or two-sample Z-tests for proportion data, using the following guidelines:
+
+### Your function should take the following arguments: **p1** and **n1** (no default) representing the estimated proportion and sample size (i.e., based on your sample data); **p2** and **n2** (both defaulting to NULL) that contain a second sample’s proportion and sample size data in the event of a two-sample test; **p0** (no default) as the expected value for the population proportion; and **alternative** (default “two.sided”) and **conf.level** (default 0.95), to be used in the same way as in the function `t.test()`.
+
+```{r}
+# From this instruction, I will set up my function with p2, n2 = NULL
+# conf.level = 0.95
+```
+
+### When conducting a two-sample test, it should be **p1** that is tested as being smaller or larger than **p2** when alternative=“less” or alternative=“greater”, the same as in the use of x and y in the function `t.test()`.
+
+[**FROM MODULE 10:**](https://fuzzyatelin.github.io/bioanth-stats/module-10/module-10.html) ***R*** has built into it a single function, `t.test()`, that lets us do all this in one line. We give it our data and the expected population mean, 𝜇μ, along with the kind of test we want to do.
+
+```{r}
+#t <- t.test(x = x, mu = mu, alternative = "greater")
+#t
+```
+
+### The function should perform a one-sample Z-test using **p1**, **n1**, and **p0** if either **p2** or **n2** (or both) is NULL.
+
+### The function should contain a check for the rules of thumb we have talked about (𝑛∗𝑝\>5n∗p\>5 and 𝑛∗(1−𝑝)\>5n∗(1−p)\>5) to ensure the validity of assuming the normal distribution in both the one- and two-sample settings. If this is violated, the function should still complete but it should also print an appropriate warning message.
+
+```{r}
+# Challenge, could not remember this rule of thumb and where we have seen this. So I just followed what is written in the instruction
+```
+
+### The function should return a list containing the members **Z** (the test statistic), **P** (the appropriate p value), and **CI** (the two-sided CI with respect to “conf.level” around **p1** in the case of a one-sample test and around **p2-p1** in the case of a two-sample test). For all test alternatives (“two.sided”, “greater”, “less”), calculate symmetric CIs based on quantiles of the normal distribution rather than worrying about calculating single-limit confidence bounds.
+
+```{r}
+#PEER COMMENTARY //saadams// for line 60: I think && (or &) is more appropriate because I think they wrote in the module both things have to be true (\|\| means OR) //saadams// lines 87 & 88: Check you equations, i think it should be ...\* sqrt(p0 \* (1 - p0) / n1) at the end (p1 written instead of p0) //saadams// line 93: I split them! So for each case I wrote a few lines of code rather than for them both at once!
+
+
+# this is my overall function specifically mentioning p1, n1, p2, n2 AS THE NULL, p0, 2 sample alternative, and the confidence level
+Z.prop.test.function <- function(p1, n1, p2 = NULL, n2 = NULL, p0, alternative = "two.sided", conf.level = 0.95) {
+  
+  # Rule of thumb check, literally copying and pasting from the instruction because I do not remember seeing this in the module (my fault)
+  # This is also for sample 1 
+  if (n1 * p1 < 5 || n1 * (1 - p1) < 5) {
+   
+    # this warning message shows the user who still wants to proceed that the condition is violated
+     warning("Warning: Sample 1 violates (np > 5 and n(1-p) > 5).")
+  }
+  
+    # Rule of thumb check, literally copying and pasting from the instruction because I do not remember seeing this in the module (my fault)
+    #DIFFERNT FROM ABOVE: THIS IS FOR A TWO-SAMPLE TEST 
+  if (!is.null(p2) && !is.null(n2)) {
+    if (n2 * p2 < 5 || n2 * (1 - p2) < 5) {
+     
+      # this warning message shows the user who still wants to proceed that the condition is violated
+       warning("Warning: Sample 2 violates (np > 5 and n(1-p) > 5).")
+    } 
+    
+# CHALLENGE: I WANT TO SPLIT THIS CODE UP BUT DO NOT KNOW HOW TO CONTINUE MY FUNCTION
+    # Two-sample test
+    #CI (the two-sided CI with respect to “conf.level” around p2-p1 in the case of a two-sample test).
+    p_star <- (p1 * n1 + p2 * n2) / (n1 + n2)  # pooled proportion
+    #copy and pasted from module 10
+    z <- (p1 - p2) / sqrt(p_star * (1 - p_star) * (1/n1 + 1/n2))
+    ci <- c((p1 - p2) - qnorm(1 - (1 - conf.level) / 2) * sqrt(p0 * (1 - p0) * (1/n1 + 1/n2)), #this is the lower CI
+         (p1 - p2) + qnorm(1 - (1 - conf.level) / 2) * sqrt(p0 * (1 - p0) * (1/n1 + 1/n2)))  #this is the upper CI
+    
+  } else {
+    # One-sample test
+    # CI (the two-sided CI with respect to “conf.level” around p1 in the case of a one-sample test
+    z <- (p1 - p0) / sqrt(p0 * (1 - p0) / n1)
+    ci <- c(p1 - qnorm(1 - (1 - conf.level) / 2) * sqrt(p1 * (1 - p1) / n1), #lower CI
+            p1 + qnorm(1 - (1 - conf.level) / 2) * sqrt(p1 * (1 - p1) / n1)) #upper CI
+  }
+  
+  # Calculate p-value
+  # Challenge. Was I suppose to do this for the pvalue? or just split it up into one sample vs two sample like the z and CI above?
+  if (alternative == "less") {
+    p_value <- pnorm(z)
+  } else if (alternative == "greater") {
+    p_value <- 1 - pnorm(z)
+  } else {
+    p_value <- 2 * (1 - pnorm(abs(z)))
+  }
+  
+  # Return output
+  return(list(
+    Z = z,
+    P = p_value,
+    CI = ci
+  ))
+}
+```
+
+### Testing my function out mostly to help myself understand what is going on because the function by itself seems very abstract
+
+```{r}
+# example set 1, one sample test
+Z.prop.test.function(p1 = 0.6, n1 = 50, p0 = 0.8)
+
+```
+
+```{r}
+# example set 2, two sample test
+Z.prop.test.function(p1 = 0.3, n1 = 50, p2 = 0.7, n2 = 35, p0 = 0.5)
+
+```
+
+```{r}
+# example set 1, one sample test
+# this example shows the warning sign on how the sample violates the (np > 5 and n(1-p) > 5) rule
+Z.prop.test.function(p1 = 0.1, n1 = 10, p0 = 0.8)
+```
+
+## [2] The dataset from Kamilar and Cooper has in it a large number of variables related to life history and body size. For this exercise, the end aim is to fit a simple linear regression model to predict longevity (`MaxLongevity_m`) measured in months from species’ brain size (`Brain_Size_Species_Mean`) measured in grams. Do the following for both `longevity~brain size` and `log(longevity)~log(brain size)`:
+
+### Fit the regression model and, using {ggplot2}, produce a scatterplot with the fitted line superimposed upon the data. Append the the fitted model equation to your plot (HINT: use the function `geom_text()`).
+
+[The `lm()` Function copied and used from module 12](https://fuzzyatelin.github.io/bioanth-stats/module-12/module-12.html)
+
+```{r}
+# Load data
+#kamilar_cooper <- read.csv("/Users/sherryxie/CODE/Github/repos/Homework/Sherry HW 4/KamilarAndCooperData.csv")
+
+#//saadams// calling the data this way would work perfectly on your computer, but for anyone that downloaded your repo I don't think it will. For example, I called the data by using the link, which I think is fine since Dr. Schmitt said the data would always be in that location (i.e. he won't move it). Because this didn't run on my end I couldn't see how your code knitted together but I'm sure it's beautiful! :)
+#//saadmas// I would suggest writing something to make sure NA entries are omitted
+
+kamilar_cooper <- curl("https://raw.githubusercontent.com/fuzzyatelin/fuzzyatelin.github.io/refs/heads/master/AN588_Spring25/KamilarAndCooperData.csv")
+kamilar_cooper <- read.csv(kamilar_cooper, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(kamilar_cooper)
+```
+
+```{r}
+# Regression Model: Longevity ~ Brain Size
+lm <- lm(MaxLongevity_m ~ Brain_Size_Species_Mean, data = kamilar_cooper)
+
+summary(lm)
+
+```
+
+```{r}
+# Regression Model: log(longevity)~log(brain size)
+lm_log <- lm(log(MaxLongevity_m) ~ log(Brain_Size_Species_Mean), data = kamilar_cooper)
+
+summary(lm_log)
+```
+
+```{r}
+# Scatterplot for Regression Model: Longevity ~ Brain Size
+
+plot_lm <- ggplot(kamilar_cooper, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) +
+  geom_point() +
+    geom_text(x = 1500, y = 400, label = paste("y =", round(coef(lm)[1], 2), "+", round(coef(lm)[2], 4), "* x")) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +  labs(title = "Longevity vs Brain Size", x = "Brain Size (g)", y = "Longevity (months)")
+
+# Display plot
+print(plot_lm)
+```
+
+```{r}
+# Scatterplot for Regression Model: log(longevity)~log(brain size)
+plot_lm_log <- ggplot(kamilar_cooper, aes(x = log(Brain_Size_Species_Mean), y = log(MaxLongevity_m))) +
+  geom_point() +
+    geom_text(x = 6, y = 6, label = paste("y =", round(coef(lm_log)[1], 2), "+", round(coef(lm_log)[2], 4), "* log(x)")) +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  labs(title = "Log(Longevity) vs Log(Brain Size)", x = "log(Brain Size)", y = "log(Longevity)")
+
+# Display plot
+print(plot_lm_log)
+```
+
+### Identify and interpret the point estimate of the slope (𝛽1β1), as well as the outcome of the test associated with the hypotheses H0: 𝛽1β1 = 0; HA: 𝛽1β1 ≠ 0. Also, find a 90 percent CI for the slope (𝛽1β1) parameter.
+
+```{r}
+#Identify the slope, hypothesis test, and CI using the results of lm()
+slope_lm <- coef(summary(lm))["Brain_Size_Species_Mean", "Estimate"]
+
+#90 percent CI 
+ci_lm <- confint(lm, level = 0.90)["Brain_Size_Species_Mean", ]
+
+slope_lm
+ci_lm
+```
+
+```{r}
+#Identify the slope, hypothesis test, and CI using the results of lm_log
+slope_lm_log <- coef(summary(lm_log))["log(Brain_Size_Species_Mean)", "Estimate"]
+
+#90 percent CI 
+ci_lm_log <- confint(lm_log, level = 0.90)["log(Brain_Size_Species_Mean)", ]
+
+slope_lm_log
+ci_lm_log
+```
+
+#### Interpretation: rejected the null hypothesis and accepted the alternative. This is because there is a significant linear relationship between brain size and longevity in both models (because beta1 does not equal 0 and the 0 is not contained in the confidence intervals for either model.)
+
+### Using your model, add lines for the 90 percent confidence and prediction interval bands on the plot and add a legend to differentiate between the lines.
+
+```{r}
+# CHALLENGE: confused about this part, for the 90th ci and perdiction interval... dont know if i sequenced it correctly
+kamilar_cooper_predict <- data.frame(Brain_Size_Species_Mean = seq(min(kamilar_cooper$Brain_Size_Species_Mean, na.rm = TRUE), max(kamilar_cooper$Brain_Size_Species_Mean, na.rm = TRUE), length.ou = 100))
+```
+
+```{r}
+# Prediction the confidence intervals for new data means based on the data above
+ci_predict <- predict(lm, newdata = kamilar_cooper_predict, interval = "confidence", level = 0.90)
+
+ci_predict
+
+```
+
+```{r}
+# Prediction the prediction intervals for new data means based on the data above
+pi_predict <- predict(lm, newdata = kamilar_cooper_predict, interval = "prediction", level = 0.90)
+
+pi_predict
+```
+
+```{r}
+# new prediction plot made based on the two plots above
+# the difference here is that the 90 percent ci and pi (represented by the red and blue lines) are added in along with the initial linear model line (green line)
+plot_predict <- ggplot(data = kamilar_cooper, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+  geom_line(data = cbind(kamilar_cooper_predict, ci_predict), aes(y = lwr), color = "blue", linetype = "dashed") +
+  geom_line(data = cbind(kamilar_cooper_predict, ci_predict), aes(y = upr), color = "blue", linetype = "dashed") +
+  geom_line(data = cbind(kamilar_cooper_predict, pi_predict), aes(y = lwr), color = "red", linetype = "dotted") +
+  geom_line(data = cbind(kamilar_cooper_predict, pi_predict), aes(y = upr), color = "red", linetype = "dotted") +
+  ggtitle("Regression with Confidence and Prediction Intervals") +
+  theme_minimal()
+
+print(plot_predict)
+```
+
+### Produce a point estimate and associated 90 percent PI for the longevity of a species whose brain weight is 800 gm. Do you trust the model to predict observations accurately for this value of the explanatory variable? Why or why not?
+
+The `predict()` function allows us to generate predicted (i.e., ![](data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iMTJwdCIgaGVpZ2h0PSIyM3B0IiB2aWV3Qm94PSIwIDAgMTIgMjMiIHZlcnNpb249IjEuMSI+PCEtLWxhdGV4aXQ6QUFBRStuamFiVk5kYkZSRkZENHpVMHJwVW5yYjhsTmFvQmU3VmZ3QnRsWGNZZ1hiVWhZVmQwRjJ1OTEydTlUWgp1N083bDk2OWQzUHZYR1M3YVRJUjVRVmpEQ0dFb0toZFhpd3FDQnBqR24xUzR3OHgwWmI0UUdKTS9Jbnh3Y1NZCitHYWlzejhpR21aeWM4K2NtWFBtTzkvNUpwazNkSWY3Zk5jUkpuWEw2cDgrRnZNZVpiYWpXMmJNYXlXUE1JMDcKNDE1cWExbGR1aU5lYnVWYkFaMTQ3Ykt5ZVhuRDVqdTZ2VDEzM3JYbDdudnU3ZTNmdVd0bzM2T2hBMk94eVNrdApsVFVzaDQ5NlRkY3dsbFkwZWxhdVZjZEM0VzNUck9CTXlIOHRiOVNyR2RSeDVwdFdOU3N0clcycjF3Z3NpS2dUCnkwUzlXQzRheEFyUk9MK3VmWDFINTRhTm03cUVSNndVcTBTemFCRWRvbE5zRkp1RUdrdFNoeG02eVVZMXk3RHMKU001S3NWR3VjNFBGOGphanVhVEJFam1hTWZXMHJsRXVTNHFrS0dkVFNuT1NhdE1aMjNMTjFKNXk0SVJqdWJiRwpJdXdZNzRiYVdMcHZxMmZiZHQ5b0tIeG8zL0JrS0Z3NUdNNVRqUVY4cXB5Z0lORzAySGYvQXpzbXFtV1lOTWRpClZaTTVZN1dBMG9QK2Y4eFlLSHlnVXJkU3QraDVhT0RoY1VtRXcyM2R6QWpsb0V5MCt4RUpMQlFPdXB4SzNPSEsKem9YZGczNFpWMTBzRFh2MmpPd04zRnhMVUVOY1drbVhNMGUwaXZXaWJVcFpuRXhabXB0akpxOGdpZmY2OGp4UgpwRGJYTllQTk5rNjZEcE0xVE5NTWkwdXpqTmxKRkN2c3phbzkwcE5TMDVZdFA1T3JGZSt0RVVXYWM1eENMaWxQCjVpalBPdi9mS3p0dnR4ZDNlYm8vVWRUTnZFUnFhdFdMMHE2aGNrdmxoVHhUVTdvdGVURUswcUNhclV1c3FwYWwKTnRXNFZHSmpXVUNQN1EvT1BTNVd6ejBoMW9qMmFDZ2NrQUN2SDN6eWtDY2NHWTNLZFZpZllaS1lkTUNnR1VldQpRN0t3N3NFdDFWWXFpbGdyMWtXRGxrazFTekk5UGxITFVJcjdhNWIwSmc1TFFrZDByYXdUYWhkS0NiOTBQa1duCmxOWmJlRTVWcVM4bC9iZjFkdy8yVjY5Y1pKNTBwaXg1cmtzZ1F4OWVQZHMvY0x3b05zaVUraEY1NTRqVVlXbmEKWDdQS1dzdHQ5d1Y2VlRsQk5KVTduZDhiRUYzbG5vNU5aaWt2Rm1abHFIdDBTbW03S1pGL3NWNXdFLzZLZVBhegpBa3NOMVI3cjE0V1ppRzFaWENCb2dCYm9nRzdZQ24zZ2h6aFF5RUllaXZBTVBBOHZ3SXR3Q2s3REdUZ0w1K0JsCmVBVmVoNHZ3Smx5Q3QrRXF2QXZ2d2Z1d0FCL0FKM0FOdm9KdjREdjRGWDVIZGFnWnRhTXUxSVA2MEU0MGdIYWgKWVJSRVVYUVlVYVFqRzNGVVFNZlJjK2dFT29uT296bDBFVjFCQytoVDlEbTZocjdFSlR5UDM4QnY0Y3Y0Q240SApMK0NQOEJkNENkL0FQK0NmOE0vNEYvd2IvZ1AvaWY4aTljUkQya2tuVWNrTzBrK0NKRXJpUkNNR01ZbERac2dzCmVaYWNKS2ZJYWZJU09VOWVKWE5rbmx3aUg1UFB5QTN5TGZtKzJnbU1hZys2Q1A4WjVNZS9BUjRlbW8wPQotLT4KPGRlZnM+CjxnPgo8c3ltYm9sIG92ZXJmbG93PSJ2aXNpYmxlIiBpZD0iZ2x5cGgwLTAiPgo8cGF0aCBzdHlsZT0ic3Ryb2tlOm5vbmU7IiBkPSIiLz4KPC9zeW1ib2w+CjxzeW1ib2wgb3ZlcmZsb3c9InZpc2libGUiIGlkPSJnbHlwaDAtMSI+CjxwYXRoIHN0eWxlPSJzdHJva2U6bm9uZTsiIGQ9Ik0gNS45Njg3NSAtMTYuNTkzNzUgTCAyLjc2NTYyNSAtMTMuMzQzNzUgTCAzLjIwMzEyNSAtMTIuOTA2MjUgTCA1Ljk2ODc1IC0xNS4zNDM3NSBMIDguNzE4NzUgLTEyLjkwNjI1IEwgOS4xNTYyNSAtMTMuMzQzNzUgWiBNIDUuOTY4NzUgLTE2LjU5Mzc1ICIvPgo8L3N5bWJvbD4KPHN5bWJvbCBvdmVyZmxvdz0idmlzaWJsZSIgaWQ9ImdseXBoMS0wIj4KPHBhdGggc3R5bGU9InN0cm9rZTpub25lOyIgZD0iIi8+Cjwvc3ltYm9sPgo8c3ltYm9sIG92ZXJmbG93PSJ2aXNpYmxlIiBpZD0iZ2x5cGgxLTEiPgo8cGF0aCBzdHlsZT0ic3Ryb2tlOm5vbmU7IiBkPSJNIDExLjYyNSAtOS4xMDkzNzUgQyAxMS43MTg3NSAtOS40Mzc1IDExLjcxODc1IC05LjQ4NDM3NSAxMS43MTg3NSAtOS42NTYyNSBDIDExLjcxODc1IC0xMC4wOTM3NSAxMS4zNzUgLTEwLjI5Njg3NSAxMS4wMTU2MjUgLTEwLjI5Njg3NSBDIDEwLjc4MTI1IC0xMC4yOTY4NzUgMTAuNDA2MjUgLTEwLjE1NjI1IDEwLjE4NzUgLTkuNzk2ODc1IEMgMTAuMTQwNjI1IC05LjY4NzUgOS45Mzc1IC04LjkzNzUgOS44NDM3NSAtOC41MTU2MjUgQyA5LjY4NzUgLTcuODkwNjI1IDkuNTE1NjI1IC03LjI1IDkuMzc1IC02LjU5Mzc1IEwgOC4yOTY4NzUgLTIuMjk2ODc1IEMgOC4yMDMxMjUgLTEuOTM3NSA3LjE3MTg3NSAtMC4yNjU2MjUgNS41OTM3NSAtMC4yNjU2MjUgQyA0LjM3NSAtMC4yNjU2MjUgNC4xMDkzNzUgLTEuMzEyNSA0LjEwOTM3NSAtMi4yMDMxMjUgQyA0LjEwOTM3NSAtMy4yOTY4NzUgNC41MTU2MjUgLTQuNzgxMjUgNS4zMjgxMjUgLTYuODkwNjI1IEMgNS43MTg3NSAtNy44NTkzNzUgNS44MTI1IC04LjEyNSA1LjgxMjUgLTguNjA5Mzc1IEMgNS44MTI1IC05LjY4NzUgNS4wNDY4NzUgLTEwLjU2MjUgMy44NDM3NSAtMTAuNTYyNSBDIDEuNTc4MTI1IC0xMC41NjI1IDAuNjg3NSAtNy4wOTM3NSAwLjY4NzUgLTYuODkwNjI1IEMgMC42ODc1IC02LjY0MDYyNSAwLjkzNzUgLTYuNjQwNjI1IDAuOTg0Mzc1IC02LjY0MDYyNSBDIDEuMjE4NzUgLTYuNjQwNjI1IDEuMjUgLTYuNjg3NSAxLjM1OTM3NSAtNy4wNzgxMjUgQyAyLjAxNTYyNSAtOS4zMjgxMjUgMi45Njg3NSAtMTAuMDQ2ODc1IDMuNzgxMjUgLTEwLjA0Njg3NSBDIDMuOTY4NzUgLTEwLjA0Njg3NSA0LjM3NSAtMTAuMDQ2ODc1IDQuMzc1IC05LjI4MTI1IEMgNC4zNzUgLTguNjcxODc1IDQuMTQwNjI1IC04LjA2MjUgMy45Njg3NSAtNy42MDkzNzUgQyAzLjAxNTYyNSAtNS4wNjI1IDIuNTc4MTI1IC0zLjcwMzEyNSAyLjU3ODEyNSAtMi41NzgxMjUgQyAyLjU3ODEyNSAtMC40NTMxMjUgNC4wOTM3NSAwLjI2NTYyNSA1LjUgMC4yNjU2MjUgQyA2LjQzNzUgMC4yNjU2MjUgNy4yNSAtMC4xNDA2MjUgNy45MDYyNSAtMC44MTI1IEMgNy42MDkzNzUgMC40Mzc1IDcuMzEyNSAxLjYwOTM3NSA2LjM1OTM3NSAyLjg3NSBDIDUuNzM0Mzc1IDMuNjg3NSA0LjgyODEyNSA0LjM3NSAzLjczNDM3NSA0LjM3NSBDIDMuMzkwNjI1IDQuMzc1IDIuMzEyNSA0LjI5Njg3NSAxLjkwNjI1IDMuMzc1IEMgMi4yOTY4NzUgMy4zNzUgMi42MDkzNzUgMy4zNzUgMi45Mzc1IDMuMDc4MTI1IEMgMy4xNzE4NzUgMi44NzUgMy40MjE4NzUgMi41NjI1IDMuNDIxODc1IDIuMTA5Mzc1IEMgMy40MjE4NzUgMS4zNTkzNzUgMi43NjU2MjUgMS4yNjU2MjUgMi41MzEyNSAxLjI2NTYyNSBDIDEuOTg0Mzc1IDEuMjY1NjI1IDEuMTg3NSAxLjY1NjI1IDEuMTg3NSAyLjgyODEyNSBDIDEuMTg3NSA0LjAxNTYyNSAyLjI1IDQuOTA2MjUgMy43MzQzNzUgNC45MDYyNSBDIDYuMTg3NSA0LjkwNjI1IDguNjU2MjUgMi43MTg3NSA5LjMyODEyNSAwLjAzMTI1IFogTSAxMS42MjUgLTkuMTA5Mzc1ICIvPgo8L3N5bWJvbD4KPC9nPgo8L2RlZnM+CjxnIGlkPSJzdXJmYWNlMSI+CjxnIHN0eWxlPSJmaWxsOnJnYigwJSwwJSwwJSk7ZmlsbC1vcGFjaXR5OjE7Ij4KICA8dXNlIHhsaW5rOmhyZWY9IiNnbHlwaDAtMSIgeD0iMS41OTUyIiB5PSIxNy40MzE4Ii8+CjwvZz4KPGcgc3R5bGU9ImZpbGw6cmdiKDAlLDAlLDAlKTtmaWxsLW9wYWNpdHk6MTsiPgogIDx1c2UgeGxpbms6aHJlZj0iI2dseXBoMS0xIiB4PSItMC4wNDY0IiB5PSIxNy40MzE4Ii8+CjwvZz4KPC9nPgo8L3N2Zz4K)) values for a vector of values of x. Note the structure of the 2nd argument in the function… it includes the x variable name, and we pass it a vector of values. Here, I pass it a vector of actual x values. [MODULE 12](https://fuzzyatelin.github.io/bioanth-stats/module-12/module-12.html#Interpreting_Regression_Coefficients_and_Prediction)
+
+```{r}
+# CI and PI for a brain size of 800 gm
+#("Prediction for longevity at 800 gm brain size (Model 1)
+predict_lm <- predict(lm, newdata = data.frame(Brain_Size_Species_Mean = 800), interval = "prediction", level = 0.90)
+
+predict_lm
+```
+
+```{r}
+#Prediction for longevity at log(800) gm brain size (Model 2)
+# CI and PI for a brain size of log 800 gm
+predict_log <- predict(lm_log, newdata = data.frame(Brain_Size_Species_Mean = log(800)), interval = "prediction", level = 0.90)
+
+predict_log
+```
+
+### Looking at your two models, which do you think is better? Why?
+
+### **Summary and Interpretation**
+
+Interpretation: I think model 2 (log-log) generally provides better fit in this case with large variance. The data on figure 2 is more spread out evenly, compared to the not logged normal case, having more clumped and untrustworthy predictions.
+
+## 5 Struggles I Have Encountered Doing HW 4
+
+1.  **Understanding the Rule of Thumb for Z.prop.test()** While implementing the `Z.prop.test()` function, I encountered difficulty recalling the rule of thumb conditions for valid normal approximation in a proportion test — specifically the conditions that n×p\>5n \times p \> 5n×p\>5 and n×(1−p)\>5n \times (1 - p) \> 5n×(1−p)\>5. These conditions are important for ensuring that the normal distribution can be appropriately applied to the data. Even though I successfully implemented the conditions by following the instructions, I felt unsure about their theoretical foundation. I realized I should have revisited the relevant module material or notes to better understand why these conditions are important. This experience taught me the importance of thoroughly reviewing foundational concepts rather than relying solely on instructions.
+2.  **Structuring the Z.prop.test() Function Correctly.** While designing the structure of my `Z.prop.test()` function, I struggled to determine the best way to organize my code for clarity and functionality. I knew I needed to split the logic between one-sample and two-sample tests, but I wasn't sure how to proceed efficiently. I initially tried combining the logic for both scenarios in one code block, which became confusing and harder to debug. Eventually, I realized that separating the one-sample and two-sample conditions into distinct parts of the function improved readability and ensured the function performed correctly in both cases. This struggle highlighted the importance of structuring my code in a logical and organized manner to avoid confusion.
+3.  **Difficulty Spotting Mistakes Without Peer Feedback.** While implementing the confidence interval calculation for my `Z.prop.test()` function, I mistakenly used `p1` instead of `p0` in the formula. Despite carefully reviewing my code, I overlooked this error. Fortunately, my peer commentator noticed the mistake and pointed it out to me. This experience emphasized that I sometimes struggle to identify errors on my own, especially in complex calculations. It reminded me of the value of peer review and collaboration, and it reinforced the importance of stepping away from my work before reviewing it with fresh eyes — a strategy I’ll apply in future coding tasks.
+4.  **Predicting Values and Constructing CI/PI in Regression Analysis.** When adding 90% confidence and prediction intervals (CI and PI) to my regression plot, I struggled with the correct sequence of steps. Specifically, I wasn’t sure how to combine the predicted values with the CI and PI bands while ensuring they correctly aligned with the regression model. Although I eventually managed to construct the plot by combining the original data with the predicted values and corresponding intervals, I was uncertain whether I had done it correctly. This struggle highlighted that I need to develop a clearer understanding of how `predict()` outputs are structured and how to sequence those outputs effectively in `ggplot2`.
+5.  **Predicting Longevity for a Brain Size of 800 gm.** Predicting the longevity of a species with a brain size of 800 gm presented some confusion. I was unsure if I had structured my predict() function input correctly, especially when calculating the prediction interval (PI). The syntax for predict() requires defining the data frame structure carefully, and I initially questioned whether I needed to separate one-sample and two-sample conditions for this prediction step, similar to how I split those steps in my Z.prop.test() function. Eventually, I realized that the predict() function handles this automatically, provided the correct structure for the new data is specified. This challenge showed me that understanding how different functions operate — especially in terms of input formatting — is essential to producing accurate results.
+
+#I think sherry's code overall is nice but I think the rmd module is overall really dense and I had a bit trouble trying to go over it. There is a lot of words going on and Since the code is broken up bit by bit and explained bit by bit there is a lot. I would try to condense the code into one block to each question. I see alot of people break each line to one block and in my opinion this is not what I do. Not every single line needs to be explained since some are intuitive. However, I do appreciate the details and indepth. But trying to find mistakes can be hard like a needle in a haystack. The overall code seemed similar what I did as well which is nice.
